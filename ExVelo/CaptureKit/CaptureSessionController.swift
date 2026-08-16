@@ -18,7 +18,11 @@ final class CaptureSessionController: NSObject, ObservableObject {
 
     private let sampleBufferQueue = DispatchQueue(label: "com.jonahobitz.exvelo.samplebuffer")
     private let videoOutput = AVCaptureVideoDataOutput()
-    private let rollingBuffer = RollingFrameBuffer(retainedDuration: 4.0)
+    // Every buffered frame is an uncompressed image held in memory: even at the
+    // efficient NV12 format below, a 720p frame is ~1.4MB, so at up to 240fps a
+    // few seconds of buffer is already several hundred MB. 1.5s comfortably covers
+    // human reaction time to tap "Mark Hit" after contact without exhausting memory.
+    private let rollingBuffer = RollingFrameBuffer(retainedDuration: 1.5)
     private var activeDevice: AVCaptureDevice?
 
     func requestAccessAndConfigure() async {
@@ -144,6 +148,12 @@ final class CaptureSessionController: NSObject, ObservableObject {
             horizontalFieldOfViewDegrees: selection.format.videoFieldOfView
         )
 
+        // Explicit, memory-efficient pixel format (~1.5 bytes/pixel) rather than
+        // leaving this to the default, which can be a 4-bytes/pixel format on some
+        // devices — a 2.7x memory difference that matters a lot at high frame rates.
+        videoOutput.videoSettings = [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+        ]
         videoOutput.setSampleBufferDelegate(self, queue: sampleBufferQueue)
         videoOutput.alwaysDiscardsLateVideoFrames = true
         guard session.canAddOutput(videoOutput) else {
