@@ -6,5 +6,6 @@ struct ExVeloApp: App {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(for: Swing.self)
     }
 }

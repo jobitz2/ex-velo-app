@@ -1,6 +1,6 @@
 import Foundation
 
-struct SwingMetrics {
+struct SwingMetrics: Equatable {
     let exitVelocityMetersPerSecond: Double
     let launchAngleDegrees: Double
     let estimatedDistanceMeters: Double
