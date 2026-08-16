@@ -6,6 +6,7 @@ struct ContentView: View {
     @StateObject private var captureController = CaptureSessionController()
     @StateObject private var analysisCoordinator = SwingAnalysisCoordinator()
     @State private var lastClipURL: URL?
+    @State private var isShowingReview = false
 
     var body: some View {
         NavigationStack {
@@ -39,6 +40,13 @@ struct ContentView: View {
                     calibrationMethod: analysisCoordinator.latestCalibratedTrajectories.first?.calibrationMethod ?? "unknown"
                 )
                 modelContext.insert(swing)
+                isShowingReview = true
+            }
+            .sheet(isPresented: $isShowingReview) {
+                if let clipURL = lastClipURL {
+                    let bestTrajectory = analysisCoordinator.latestTrajectories.max { $0.detectedPoints.count < $1.detectedPoints.count }
+                    ReviewView(clipURL: clipURL, trajectory: bestTrajectory, metrics: analysisCoordinator.latestMetrics)
+                }
             }
         }
     }
