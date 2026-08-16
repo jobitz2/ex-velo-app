@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct CaptureView: View {
-    @StateObject private var captureController = CaptureSessionController()
+    @ObservedObject var captureController: CaptureSessionController
     @StateObject private var levelProvider = LevelProvider()
 
     var onClipCaptured: (URL) -> Void = { _ in }
@@ -85,5 +85,5 @@ struct CaptureView: View {
 }
 
 #Preview {
-    CaptureView()
+    CaptureView(captureController: CaptureSessionController())
 }

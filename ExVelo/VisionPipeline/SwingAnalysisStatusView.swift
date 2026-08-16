@@ -12,8 +12,12 @@ struct SwingAnalysisStatusView: View {
                 EmptyView()
             case .analyzing:
                 label("Analyzing swing\u{2026}", systemImage: "hourglass")
-            case let .tracked(trajectoryCount, pointCount):
-                label("Tracked \(trajectoryCount) trajectory\(trajectoryCount == 1 ? "" : "ies") (\(pointCount) points)", systemImage: "checkmark.circle.fill")
+            case let .tracked(trajectoryCount, pointCount, calibrated):
+                label(
+                    "Tracked \(trajectoryCount) trajectory\(trajectoryCount == 1 ? "" : "ies") (\(pointCount) points)"
+                        + (calibrated ? "" : " \u{2014} calibration failed"),
+                    systemImage: calibrated ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+                )
             case .noTrajectoryDetected:
                 label("No trajectory detected \u{2014} check lighting, background clutter, and framing.", systemImage: "exclamationmark.triangle.fill")
             case let .failed(message):

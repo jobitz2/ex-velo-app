@@ -12,6 +12,7 @@ final class CaptureSessionController: NSObject, ObservableObject {
     @Published private(set) var isMarkingHit = false
     @Published private(set) var lastCapturedClipURL: URL?
     @Published private(set) var captureError: String?
+    @Published private(set) var activeCameraGeometry: CameraGeometry?
 
     let session = AVCaptureSession()
 
@@ -137,6 +138,11 @@ final class CaptureSessionController: NSObject, ObservableObject {
         frameRateWarning = selection.maxFrameRate < CameraFormatSelector.minimumAcceptableFrameRate
             ? "This device tops out at \(Int(selection.maxFrameRate)) fps. Fast swings may be hard to track below \(Int(CameraFormatSelector.minimumAcceptableFrameRate)) fps."
             : nil
+        activeCameraGeometry = CameraGeometry(
+            pixelWidth: Int(selection.dimensions.width),
+            pixelHeight: Int(selection.dimensions.height),
+            horizontalFieldOfViewDegrees: selection.format.videoFieldOfView
+        )
 
         videoOutput.setSampleBufferDelegate(self, queue: sampleBufferQueue)
         videoOutput.alwaysDiscardsLateVideoFrames = true

@@ -1,13 +1,15 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var captureController = CaptureSessionController()
     @StateObject private var analysisCoordinator = SwingAnalysisCoordinator()
 
     var body: some View {
         ZStack(alignment: .top) {
-            CaptureView { url in
+            CaptureView(captureController: captureController) { url in
                 Task {
-                    await analysisCoordinator.analyze(clipAt: url)
+                    guard let geometry = captureController.activeCameraGeometry else { return }
+                    await analysisCoordinator.analyze(clipAt: url, cameraGeometry: geometry)
                 }
             }
             SwingAnalysisStatusView(status: analysisCoordinator.status)
