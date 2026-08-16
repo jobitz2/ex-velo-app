@@ -16,12 +16,19 @@ final class SwingAnalysisCoordinator: ObservableObject {
     @Published private(set) var status: Status = .idle
     @Published private(set) var latestTrajectories: [TrackedTrajectory] = []
     @Published private(set) var latestCalibratedTrajectories: [CalibratedTrajectory] = []
+    @Published private(set) var latestMetrics: SwingMetrics?
 
     private let tracker = TrajectoryTracker()
     private let calibrationEngine = CalibrationEngine.default
 
-    func analyze(clipAt url: URL, cameraGeometry: CameraGeometry, guidedPlacement: GuidedPlacement? = nil) async {
+    func analyze(
+        clipAt url: URL,
+        cameraGeometry: CameraGeometry,
+        guidedPlacement: GuidedPlacement? = nil,
+        deviceLevelPitchDegrees: Double = 0
+    ) async {
         status = .analyzing
+        latestMetrics = nil
         do {
             let trajectories = try await tracker.detectTrajectories(in: url)
             latestTrajectories = trajectories
@@ -39,6 +46,12 @@ final class SwingAnalysisCoordinator: ObservableObject {
             )
             let calibrated = trajectories.compactMap { calibrationEngine.calibrate(trajectory: $0, context: context) }
             latestCalibratedTrajectories = calibrated
+
+            // The longest tracked trajectory is the likeliest candidate for the
+            // actual ball; shorter ones are more often background clutter.
+            if let best = calibrated.max(by: { $0.points.count < $1.points.count }) {
+                latestMetrics = PhysicsEngine.computeMetrics(from: best, deviceLevelPitchDegrees: deviceLevelPitchDegrees)
+            }
 
             let pointCount = trajectories.reduce(0) { $0 + $1.detectedPoints.count }
             status = .tracked(trajectoryCount: trajectories.count, pointCount: pointCount, calibrated: !calibrated.isEmpty)

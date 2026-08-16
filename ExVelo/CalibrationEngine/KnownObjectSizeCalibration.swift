@@ -5,9 +5,6 @@ import Foundation
 /// per docs/ASSESSMENT.md §2.4.1. Requires no extra hardware or user setup beyond
 /// framing the shot, so this is the primary MVP strategy.
 struct KnownObjectSizeCalibration: CalibrationStrategy {
-    /// Standard baseball radius: ~2.9in / 7.35cm diameter, halved.
-    static let ballRadiusMeters = 0.03675
-
     func calibrate(trajectory: TrackedTrajectory, context: CalibrationContext) -> CalibratedTrajectory? {
         guard !trajectory.detectedPoints.isEmpty else { return nil }
 
@@ -23,7 +20,7 @@ struct KnownObjectSizeCalibration: CalibrationStrategy {
         // approximation given the short post-contact window this MVP analyzes.
         let ballRadiusPixels = trajectory.averageRadius * CGFloat(context.frameWidthPixels)
         guard ballRadiusPixels > 0 else { return nil }
-        let depthMeters = (Self.ballRadiusMeters * focalLengthPixels) / Double(ballRadiusPixels)
+        let depthMeters = (BaseballConstants.radiusMeters * focalLengthPixels) / Double(ballRadiusPixels)
 
         let points = CalibrationGeometry.points(
             from: trajectory,

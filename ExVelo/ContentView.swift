@@ -12,7 +12,7 @@ struct ContentView: View {
                     await analysisCoordinator.analyze(clipAt: url, cameraGeometry: geometry)
                 }
             }
-            SwingAnalysisStatusView(status: analysisCoordinator.status)
+            SwingAnalysisStatusView(status: analysisCoordinator.status, metrics: analysisCoordinator.latestMetrics)
                 .padding(.top, 60)
         }
     }
