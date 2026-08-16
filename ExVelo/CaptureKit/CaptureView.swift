@@ -4,8 +4,6 @@ struct CaptureView: View {
     @ObservedObject var captureController: CaptureSessionController
     @StateObject private var levelProvider = LevelProvider()
 
-    var onClipCaptured: (URL) -> Void = { _ in }
-
     var body: some View {
         ZStack {
             CameraPreviewView(session: captureController.session)
@@ -29,6 +27,12 @@ struct CaptureView: View {
                 HStack {
                     LevelIndicatorView(pitchDegrees: levelProvider.pitchDegrees, rollDegrees: levelProvider.rollDegrees)
                     Spacer()
+                    if captureController.isSessionActive {
+                        Text("\(captureController.sessionSwingCount) swing\(captureController.sessionSwingCount == 1 ? "" : "s")")
+                            .font(.caption.monospacedDigit())
+                            .padding(6)
+                            .background(.ultraThinMaterial, in: Capsule())
+                    }
                     if captureController.achievedFrameRate > 0 {
                         Text("\(Int(captureController.achievedFrameRate)) fps")
                             .font(.caption.monospacedDigit())
@@ -43,22 +47,47 @@ struct CaptureView: View {
                     .foregroundStyle(.secondary)
 
                 Button {
-                    captureController.lockExposureAndFocus()
                     Task {
-                        if let url = await captureController.markHit() {
-                            onClipCaptured(url)
+                        if captureController.isSessionActive {
+                            captureController.stopSession()
+                        } else {
+                            _ = await captureController.startSession()
                         }
                     }
                 } label: {
-                    Text(captureController.isMarkingHit ? "Saving\u{2026}" : "Mark Hit")
+                    Text(captureController.isSessionActive ? "Stop Session" : "Start Session")
                         .font(.headline)
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(Color.red, in: RoundedRectangle(cornerRadius: 14))
+                        .background(
+                            captureController.isSessionActive ? Color.red : Color.green,
+                            in: RoundedRectangle(cornerRadius: 14)
+                        )
                         .foregroundStyle(.white)
                 }
+                .disabled(!captureController.isRunning)
+                .padding(.horizontal)
+
+                Text(captureController.isSessionActive
+                    ? "Auto-detecting each swing from the crack of the bat \u{2014} just keep swinging."
+                    : "Start a session, then just swing \u{2014} each hit is detected automatically.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                    .padding(.top, 4)
+
+                Button {
+                    Task { _ = await captureController.markHit() }
+                } label: {
+                    Text(captureController.isMarkingHit ? "Saving\u{2026}" : "Mark Hit Manually")
+                        .font(.subheadline)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                }
                 .disabled(captureController.isMarkingHit || !captureController.isRunning)
-                .padding()
+                .padding(.horizontal)
+                .padding(.bottom)
             }
 
             if let error = captureController.captureError {
@@ -78,6 +107,7 @@ struct CaptureView: View {
             levelProvider.start()
         }
         .onDisappear {
+            captureController.stopSession()
             captureController.stop()
             levelProvider.stop()
         }

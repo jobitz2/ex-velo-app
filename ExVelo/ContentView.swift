@@ -11,13 +11,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
-                CaptureView(captureController: captureController) { url in
-                    lastClipURL = url
-                    Task {
-                        guard let geometry = captureController.activeCameraGeometry else { return }
-                        await analysisCoordinator.analyze(clipAt: url, cameraGeometry: geometry)
-                    }
-                }
+                CaptureView(captureController: captureController)
                 SwingAnalysisStatusView(status: analysisCoordinator.status, metrics: analysisCoordinator.latestMetrics)
                     .padding(.top, 60)
             }
@@ -27,6 +21,18 @@ struct ContentView: View {
                         HistoryView()
                     }
                     .foregroundStyle(.white)
+                }
+            }
+            // A new clip here means a hit was marked — whether by the manual
+            // button or the audio-onset auto-detector during a session; both
+            // paths go through CaptureSessionController.markHit(), so this is
+            // the single place analysis gets triggered regardless of which one.
+            .onChange(of: captureController.lastCapturedClipURL) { _, url in
+                guard let url else { return }
+                lastClipURL = url
+                Task {
+                    guard let geometry = captureController.activeCameraGeometry else { return }
+                    await analysisCoordinator.analyze(clipAt: url, cameraGeometry: geometry)
                 }
             }
             .onChange(of: analysisCoordinator.latestMetrics) { _, metrics in
@@ -40,7 +46,13 @@ struct ContentView: View {
                     calibrationMethod: analysisCoordinator.latestCalibratedTrajectories.first?.calibrationMethod ?? "unknown"
                 )
                 modelContext.insert(swing)
-                isShowingReview = true
+                // During a session, popping a sheet after every swing would
+                // interrupt batting practice — only auto-review a single
+                // manually-marked hit outside of a session. Session swings are
+                // all still saved and viewable afterward in History.
+                if !captureController.isSessionActive {
+                    isShowingReview = true
+                }
             }
             .sheet(isPresented: $isShowingReview) {
                 if let clipURL = lastClipURL {

@@ -13,6 +13,8 @@ final class CaptureSessionController: NSObject, ObservableObject {
     @Published private(set) var lastCapturedClipURL: URL?
     @Published private(set) var captureError: String?
     @Published private(set) var activeCameraGeometry: CameraGeometry?
+    @Published private(set) var isSessionActive = false
+    @Published private(set) var sessionSwingCount = 0
 
     let session = AVCaptureSession()
 
@@ -24,6 +26,7 @@ final class CaptureSessionController: NSObject, ObservableObject {
     // human reaction time to tap "Mark Hit" after contact without exhausting memory.
     private let rollingBuffer = RollingFrameBuffer(retainedDuration: 1.5)
     private var activeDevice: AVCaptureDevice?
+    private let audioOnsetDetector = AudioOnsetDetector()
 
     func requestAccessAndConfigure() async {
         let granted = await AVCaptureDevice.requestAccess(for: .video)
@@ -52,6 +55,41 @@ final class CaptureSessionController: NSObject, ObservableObject {
         isRunning = false
     }
 
+    /// Starts hands-free auto-detection: swings no longer need a tap per hit, just
+    /// this once to open the session. `markHit()` (and its post-roll/analysis
+    /// pipeline) is exactly what the manual button already called — the onset
+    /// detector is just a second, automatic trigger for the same mechanism.
+    func startSession() async -> Bool {
+        guard !isSessionActive else { return true }
+        guard await audioOnsetDetector.requestAccess() else {
+            captureError = "Microphone access denied. Enable it in Settings to auto-detect swings, or use Mark Hit manually."
+            return false
+        }
+        audioOnsetDetector.onOnsetDetected = { [weak self] in
+            guard let self else { return }
+            Task {
+                if await self.markHit() != nil {
+                    self.sessionSwingCount += 1
+                }
+            }
+        }
+        do {
+            try audioOnsetDetector.start()
+        } catch {
+            captureError = "Failed to start audio detection: \(error.localizedDescription)"
+            return false
+        }
+        sessionSwingCount = 0
+        isSessionActive = true
+        return true
+    }
+
+    func stopSession() {
+        guard isSessionActive else { return }
+        audioOnsetDetector.stop()
+        isSessionActive = false
+    }
+
     func lockExposureAndFocus() {
         guard let device = activeDevice else { return }
         do {
@@ -69,6 +107,7 @@ final class CaptureSessionController: NSObject, ObservableObject {
     func markHit(postRollDuration: TimeInterval = 1.0) async -> URL? {
         isMarkingHit = true
         defer { isMarkingHit = false }
+        lockExposureAndFocus()
         try? await Task.sleep(for: .seconds(postRollDuration))
         let buffers = await rollingBuffer.snapshot()
         guard !buffers.isEmpty else {
