@@ -3,8 +3,18 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 70;
 	objects = {
+
+/* Begin PBXContainerItemProxy section */
+		EF00000000000016 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EF00000000000004 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EF0000000000000C;
+			remoteInfo = ExVelo;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		EF0000000000000A /* ExVelo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ExVelo.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -32,16 +42,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
-
-/* Begin PBXContainerItemProxy section */
-		EF00000000000016 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = EF00000000000004 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = EF0000000000000C;
-			remoteInfo = ExVelo;
-		};
-/* End PBXContainerItemProxy section */
 
 /* Begin PBXGroup section */
 		EF00000000000002 = {
@@ -373,10 +373,16 @@
 		EF00000000000018 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 26B63JGT35;
 				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jonahobitz.ExVeloTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -384,22 +390,22 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ExVelo.app/ExVelo";
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
 			};
 			name = Debug;
 		};
 		EF00000000000019 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 26B63JGT35;
 				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jonahobitz.ExVeloTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -407,18 +413,21 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ExVelo.app/ExVelo";
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		EF00000000000005 /* Build configuration list for PBXProject "ExVelo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EF00000000000006 /* Debug */,
+				EF00000000000007 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		EF0000000000000D /* Build configuration list for PBXNativeTarget "ExVelo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -433,15 +442,6 @@
 			buildConfigurations = (
 				EF00000000000018 /* Debug */,
 				EF00000000000019 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		EF00000000000005 /* Build configuration list for PBXProject "ExVelo" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				EF00000000000006 /* Debug */,
-				EF00000000000007 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
