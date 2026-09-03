@@ -17,12 +17,29 @@ final class RadarGunEngine {
     /// stale, no-longer-moving one.
     private let staleAfterSeconds: TimeInterval = 1.0
 
+    /// Vision's own measure of how well a trajectory's points fit a parabola
+    /// (0...1). A trajectory built from camera shake or background clutter
+    /// rather than a real ball tends to fit poorly; requiring a high confidence
+    /// here is the main defense against handheld-shake false positives.
+    private let minimumConfidence: Float = 0.85
+
     private let tracker = LiveTrajectoryTracker()
+    private let motionMonitor = MotionStabilityMonitor()
     private var geometry: CameraGeometry?
     private var lastActivity: CFAbsoluteTime = 0
 
     func updateGeometry(_ geometry: CameraGeometry) {
         self.geometry = geometry
+    }
+
+    /// Starts device-motion monitoring — called when a scan begins.
+    func start() {
+        motionMonitor.start()
+    }
+
+    /// Stops device-motion monitoring — called when a scan ends.
+    func stop() {
+        motionMonitor.stop()
     }
 
     /// Clears tracked state so the next scan starts fresh — called when a new
@@ -34,15 +51,28 @@ final class RadarGunEngine {
 
     /// Call only from the sample-buffer delegate queue.
     func ingest(_ sampleBuffer: CMSampleBuffer) -> Reading {
+        // The device itself moving makes stationary background objects appear
+        // to move across the frame just like a thrown ball would; rather than
+        // try to distinguish real motion from shake after the fact, skip
+        // feeding these frames into the tracker at all, and drop whatever was
+        // mid-track so it doesn't blend with clean frames once stability
+        // returns.
+        guard motionMonitor.isStable else {
+            tracker.reset()
+            return Reading(trajectory: nil, speedMph: nil)
+        }
+
         let now = CFAbsoluteTimeGetCurrent()
         if lastActivity > 0, now - lastActivity > staleAfterSeconds {
             tracker.reset()
         }
 
         let tracked = tracker.process(sampleBuffer: sampleBuffer)
-        // The longest tracked trajectory is the likeliest candidate for the actual
-        // ball; shorter ones are more often background clutter.
-        guard let geometry, let best = tracked.max(by: { $0.trajectory.detectedPoints.count < $1.trajectory.detectedPoints.count }) else {
+        // Filter to trajectories Vision itself is confident actually fit a
+        // parabola before ranking by point count — a longer but poorly-fit
+        // trajectory is more likely clutter than a real ball.
+        let candidates = tracked.filter { $0.trajectory.confidence >= minimumConfidence }
+        guard let geometry, let best = candidates.max(by: { $0.trajectory.detectedPoints.count < $1.trajectory.detectedPoints.count }) else {
             return Reading(trajectory: nil, speedMph: nil)
         }
         lastActivity = now

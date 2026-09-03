@@ -38,6 +38,7 @@ final class RadarGunCoordinator: ObservableObject {
     func startScanning() {
         guard !isScanning else { return }
         engine.reset()
+        engine.start()
         currentTrajectory = nil
         status = .scanning
         isScanning = true
@@ -51,6 +52,7 @@ final class RadarGunCoordinator: ObservableObject {
         guard isScanning else { return }
         isScanning = false
         scanningFlag = false
+        engine.stop()
         if status == .scanning {
             status = .idle
         }

@@ -118,4 +118,21 @@ final class PhysicsEngineTests: XCTestCase {
         }
         XCTAssertEqual(speedMph, 100, accuracy: 1)
     }
+
+    /// A spurious trajectory from camera shake or background clutter can
+    /// regress out to a nonsense speed; computeSpeedMph should reject it
+    /// rather than report an obviously-implausible reading.
+    func testRejectsImplausiblySlowOrFastSpeed() {
+        func trajectory(withSpeed speed: Double) -> CalibratedTrajectory {
+            let points: [CalibratedPoint] = (0..<10).map { i in
+                let t = Double(i) * 0.004
+                return CalibratedPoint(xMeters: speed * t, yMeters: 0, depthMeters: 10, timestampSeconds: t)
+            }
+            return CalibratedTrajectory(points: points)
+        }
+
+        XCTAssertNil(PhysicsEngine.computeSpeedMph(from: trajectory(withSpeed: 0.5))) // ~1mph, noise-level
+        XCTAssertNil(PhysicsEngine.computeSpeedMph(from: trajectory(withSpeed: 200))) // ~447mph, impossible
+        XCTAssertNotNil(PhysicsEngine.computeSpeedMph(from: trajectory(withSpeed: 40))) // ~89.5mph, plausible
+    }
 }
