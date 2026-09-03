@@ -319,8 +319,7 @@
 				DEVELOPMENT_TEAM = 26B63JGT35;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Ex-Velo uses the camera to record your swing and measure exit velocity, launch angle, and estimated distance.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Ex-Velo can listen for the crack of the bat to automatically trim your swing clips.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Ex-Velo uses the camera to track a thrown or hit ball and measure its speed.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -350,8 +349,7 @@
 				DEVELOPMENT_TEAM = 26B63JGT35;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Ex-Velo uses the camera to record your swing and measure exit velocity, launch angle, and estimated distance.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Ex-Velo can listen for the crack of the bat to automatically trim your swing clips.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Ex-Velo uses the camera to track a thrown or hit ball and measure its speed.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

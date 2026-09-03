@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CaptureView: View {
     @ObservedObject var captureController: CaptureSessionController
+    @ObservedObject var radarGun: RadarGunCoordinator
     @StateObject private var levelProvider = LevelProvider()
 
     var body: some View {
@@ -10,6 +11,8 @@ struct CaptureView: View {
                 .ignoresSafeArea()
 
             FramingGuideView()
+
+            TrajectoryOverlayView(trajectory: radarGun.currentTrajectory)
 
             VStack {
                 if let warning = captureController.frameRateWarning {
@@ -24,15 +27,11 @@ struct CaptureView: View {
 
                 Spacer()
 
+                RadarReadoutView(status: radarGun.status)
+
                 HStack {
                     LevelIndicatorView(pitchDegrees: levelProvider.pitchDegrees, rollDegrees: levelProvider.rollDegrees)
                     Spacer()
-                    if captureController.isSessionActive {
-                        Text("\(captureController.sessionSwingCount) swing\(captureController.sessionSwingCount == 1 ? "" : "s")")
-                            .font(.caption.monospacedDigit())
-                            .padding(6)
-                            .background(.ultraThinMaterial, in: Capsule())
-                    }
                     if captureController.achievedFrameRate > 0 {
                         Text("\(Int(captureController.achievedFrameRate)) fps")
                             .font(.caption.monospacedDigit())
@@ -45,49 +44,7 @@ struct CaptureView: View {
                 Text("This is a camera-based estimate, not a radar-grade reading.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-
-                Button {
-                    Task {
-                        if captureController.isSessionActive {
-                            captureController.stopSession()
-                        } else {
-                            _ = await captureController.startSession()
-                        }
-                    }
-                } label: {
-                    Text(captureController.isSessionActive ? "Stop Session" : "Start Session")
-                        .font(.headline)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(
-                            captureController.isSessionActive ? Color.red : Color.green,
-                            in: RoundedRectangle(cornerRadius: 14)
-                        )
-                        .foregroundStyle(.white)
-                }
-                .disabled(!captureController.isRunning)
-                .padding(.horizontal)
-
-                Text(captureController.isSessionActive
-                    ? "Auto-detecting each swing from the crack of the bat \u{2014} just keep swinging."
-                    : "Start a session, then just swing \u{2014} each hit is detected automatically.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-                    .padding(.top, 4)
-
-                Button {
-                    Task { _ = await captureController.markHit() }
-                } label: {
-                    Text(captureController.isMarkingHit ? "Saving\u{2026}" : "Mark Hit Manually")
-                        .font(.subheadline)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                }
-                .disabled(captureController.isMarkingHit || !captureController.isRunning)
-                .padding(.horizontal)
-                .padding(.bottom)
+                    .padding(.bottom)
             }
 
             if let error = captureController.captureError {
@@ -102,12 +59,18 @@ struct CaptureView: View {
             }
         }
         .task {
+            captureController.onSampleBuffer = { [weak radarGun] buffer in
+                radarGun?.ingest(buffer)
+            }
             await captureController.requestAccessAndConfigure()
             captureController.start()
             levelProvider.start()
         }
+        .onChange(of: captureController.activeCameraGeometry) { _, geometry in
+            guard let geometry else { return }
+            radarGun.updateGeometry(geometry)
+        }
         .onDisappear {
-            captureController.stopSession()
             captureController.stop()
             levelProvider.stop()
         }
@@ -115,5 +78,5 @@ struct CaptureView: View {
 }
 
 #Preview {
-    CaptureView(captureController: CaptureSessionController())
+    CaptureView(captureController: CaptureSessionController(), radarGun: RadarGunCoordinator())
 }

@@ -1,21 +1,12 @@
 import Foundation
 
-/// Optional cross-check for KnownObjectSizeCalibration: the user places the phone at
-/// a known distance/height from contact (onboarding "framing guide"), and that fixed
-/// geometry is used directly instead of inferring depth from the ball's apparent size.
-struct GuidedPlacement {
-    let distanceToContactMeters: Double
-    let heightAboveGroundMeters: Double
-}
-
-/// Everything a CalibrationStrategy needs to turn a trajectory's normalized image
-/// points into real-world positions. CalibrationEngine's callers build this from
-/// CaptureKit's CameraGeometry so calibration code never has to import AVFoundation.
+/// Everything KnownObjectSizeCalibration needs to turn a trajectory's normalized
+/// image points into real-world positions. Built by callers from CaptureKit's
+/// CameraGeometry so calibration code never has to import AVFoundation.
 struct CalibrationContext {
     let frameWidthPixels: Int
     let frameHeightPixels: Int
     let horizontalFieldOfViewDegrees: Float
-    let guidedPlacement: GuidedPlacement?
 }
 
 /// A trajectory point converted to meters, in the plane perpendicular to the camera
@@ -30,5 +21,4 @@ struct CalibratedPoint {
 
 struct CalibratedTrajectory {
     let points: [CalibratedPoint]
-    let calibrationMethod: String
 }

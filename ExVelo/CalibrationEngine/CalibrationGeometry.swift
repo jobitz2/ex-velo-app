@@ -1,15 +1,12 @@
 import Foundation
 
-/// Shared pixel-to-meters conversion used by every CalibrationStrategy once it has
-/// derived a depth (by whatever means): known-object-size, guided placement, or a
-/// future per-frame LiDAR depth.
+/// Shared pixel-to-meters conversion, given a depth derived by KnownObjectSizeCalibration.
 enum CalibrationGeometry {
     static func points(
         from trajectory: TrackedTrajectory,
         depthMeters: Double,
         focalLengthPixels: Double,
-        context: CalibrationContext,
-        heightOffsetMeters: Double
+        context: CalibrationContext
     ) -> [CalibratedPoint] {
         let principalX = Double(context.frameWidthPixels) / 2
         let principalY = Double(context.frameHeightPixels) / 2
@@ -23,7 +20,7 @@ enum CalibrationGeometry {
             let pixelY = (1 - Double(point.normalizedLocation.y)) * Double(context.frameHeightPixels)
 
             let xMeters = (pixelX - principalX) * depthMeters / focalLengthPixels
-            let yMeters = (principalY - pixelY) * depthMeters / focalLengthPixels + heightOffsetMeters
+            let yMeters = (principalY - pixelY) * depthMeters / focalLengthPixels
 
             // detectedPoints don't carry individual timestamps, only the
             // observation's overall time range, so samples are treated as evenly

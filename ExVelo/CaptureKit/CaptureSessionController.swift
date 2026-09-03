@@ -1,37 +1,34 @@
 import AVFoundation
 import CoreMedia
 
-/// Owns the AVCaptureSession: selects the highest-fps format the device supports,
-/// buffers frames continuously, and trims a clip around the moment the user marks
-/// contact rather than requiring them to start recording ahead of the swing.
+/// Owns the AVCaptureSession: selects the highest-fps format the device supports
+/// and streams live frames out for tracking. Unlike a swing analyzer, a radar gun
+/// has nothing to trim around — every frame is forwarded live via `onSampleBuffer`
+/// rather than buffered for a later "mark the hit" moment.
 @MainActor
 final class CaptureSessionController: NSObject, ObservableObject {
     @Published private(set) var isRunning = false
     @Published private(set) var achievedFrameRate: Double = 0
     @Published private(set) var frameRateWarning: String?
-    @Published private(set) var isMarkingHit = false
-    @Published private(set) var lastCapturedClipURL: URL?
     @Published private(set) var captureError: String?
     @Published private(set) var activeCameraGeometry: CameraGeometry?
-    @Published private(set) var isSessionActive = false
-    @Published private(set) var sessionSwingCount = 0
 
     let session = AVCaptureSession()
 
+    /// Called on the sample-buffer delegate queue (never the main actor) for every
+    /// captured frame. `nonisolated(unsafe)` because it's read from the nonisolated
+    /// delegate callback; safe because it's only ever assigned once, before the
+    /// session starts producing frames.
+    nonisolated(unsafe) var onSampleBuffer: ((CMSampleBuffer) -> Void)?
+
     private let sampleBufferQueue = DispatchQueue(label: "com.jonahobitz.exvelo.samplebuffer")
     private let videoOutput = AVCaptureVideoDataOutput()
-    // Every buffered frame is an uncompressed image held in memory: even at the
-    // efficient NV12 format below, a 720p frame is ~1.4MB, so at up to 240fps a
-    // few seconds of buffer is already several hundred MB. 1.5s comfortably covers
-    // human reaction time to tap "Mark Hit" after contact without exhausting memory.
-    private let rollingBuffer = RollingFrameBuffer(retainedDuration: 1.5)
     private var activeDevice: AVCaptureDevice?
-    private let audioOnsetDetector = AudioOnsetDetector()
 
     func requestAccessAndConfigure() async {
         let granted = await AVCaptureDevice.requestAccess(for: .video)
         guard granted else {
-            captureError = "Camera access denied. Enable it in Settings to record swings."
+            captureError = "Camera access denied. Enable it in Settings to use the radar gun."
             return
         }
         configureSession()
@@ -53,78 +50,6 @@ final class CaptureSessionController: NSObject, ObservableObject {
             session.stopRunning()
         }
         isRunning = false
-    }
-
-    /// Starts hands-free auto-detection: swings no longer need a tap per hit, just
-    /// this once to open the session. `markHit()` (and its post-roll/analysis
-    /// pipeline) is exactly what the manual button already called — the onset
-    /// detector is just a second, automatic trigger for the same mechanism.
-    func startSession() async -> Bool {
-        guard !isSessionActive else { return true }
-        guard await audioOnsetDetector.requestAccess() else {
-            captureError = "Microphone access denied. Enable it in Settings to auto-detect swings, or use Mark Hit manually."
-            return false
-        }
-        audioOnsetDetector.onOnsetDetected = { [weak self] in
-            guard let self else { return }
-            Task {
-                if await self.markHit() != nil {
-                    self.sessionSwingCount += 1
-                }
-            }
-        }
-        do {
-            try audioOnsetDetector.start()
-        } catch {
-            captureError = "Failed to start audio detection: \(error.localizedDescription)"
-            return false
-        }
-        sessionSwingCount = 0
-        isSessionActive = true
-        return true
-    }
-
-    func stopSession() {
-        guard isSessionActive else { return }
-        audioOnsetDetector.stop()
-        isSessionActive = false
-    }
-
-    func lockExposureAndFocus() {
-        guard let device = activeDevice else { return }
-        do {
-            try device.lockForConfiguration()
-            if device.isFocusModeSupported(.locked) { device.focusMode = .locked }
-            if device.isExposureModeSupported(.locked) { device.exposureMode = .locked }
-            device.unlockForConfiguration()
-        } catch {
-            captureError = "Failed to lock exposure/focus: \(error.localizedDescription)"
-        }
-    }
-
-    /// Marks the moment of contact. Waits a short post-roll so the ball's flight is
-    /// still in the buffer, then writes the trimmed window to a clip on disk.
-    func markHit(postRollDuration: TimeInterval = 1.0) async -> URL? {
-        isMarkingHit = true
-        defer { isMarkingHit = false }
-        lockExposureAndFocus()
-        try? await Task.sleep(for: .seconds(postRollDuration))
-        let buffers = await rollingBuffer.snapshot()
-        guard !buffers.isEmpty else {
-            captureError = "No frames captured yet."
-            return nil
-        }
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("mov")
-        do {
-            try await ClipWriter.write(buffers: buffers, to: url)
-            lastCapturedClipURL = url
-            return url
-        } catch {
-            captureError = "Failed to save clip: \(error.localizedDescription)"
-            return nil
-        }
     }
 
     private func configureSession() {
@@ -179,7 +104,7 @@ final class CaptureSessionController: NSObject, ObservableObject {
 
         achievedFrameRate = selection.maxFrameRate
         frameRateWarning = selection.maxFrameRate < CameraFormatSelector.minimumAcceptableFrameRate
-            ? "This device tops out at \(Int(selection.maxFrameRate)) fps. Fast swings may be hard to track below \(Int(CameraFormatSelector.minimumAcceptableFrameRate)) fps."
+            ? "This device tops out at \(Int(selection.maxFrameRate)) fps. Fast pitches/hits may be hard to track below \(Int(CameraFormatSelector.minimumAcceptableFrameRate)) fps."
             : nil
         activeCameraGeometry = CameraGeometry(
             pixelWidth: Int(selection.dimensions.width),
@@ -212,7 +137,6 @@ extension CaptureSessionController: AVCaptureVideoDataOutputSampleBufferDelegate
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
-        let rollingBuffer = rollingBuffer
-        Task { await rollingBuffer.append(sampleBuffer) }
+        onSampleBuffer?(sampleBuffer)
     }
 }

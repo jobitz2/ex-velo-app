@@ -37,15 +37,14 @@ cloned folder.
 ## 4. Build & run
 
 Pick the **ExVelo** scheme, choose your iPhone as the destination, and hit Run.
-On first launch you'll be asked for camera and microphone permission — both
-are required (camera for capture, microphone is prepped for the V1 auto-trim
-feature described in `docs/ASSESSMENT.md`).
+On first launch you'll be asked for camera permission — required to track the
+ball.
 
 ## 5. Run the unit tests
 
-The **ExVeloTests** target covers `PhysicsEngine` (velocity/launch-angle
-regression and the drag-based distance model) with synthetic inputs, so it
-runs on the Simulator without needing a device:
+The **ExVeloTests** target covers `PhysicsEngine` (speed regression from
+tracked points) with synthetic inputs, so it runs on the Simulator without
+needing a device:
 
 ```
 xcodebuild -project ExVelo.xcodeproj -scheme ExVelo \
@@ -56,13 +55,18 @@ Or press **Cmd+U** in Xcode with the ExVelo scheme selected.
 
 ## What to try first
 
-1. Point the camera at a tee or soft-toss setup per the on-screen framing guide.
-2. Tap **Mark Hit** right after contact — the app keeps a rolling buffer, so
-   you don't need to start recording ahead of time.
-3. After a short pause (post-roll capture), it analyzes the clip and shows
-   exit velocity / launch angle / estimated distance, then opens a review
-   screen with the clip and tracked trajectory overlaid.
-4. Check **History** (top-right) for past swings.
+1. Point the camera at whoever's throwing or hitting, per the on-screen
+   framing guide — the app is a live radar gun, not a recorder.
+2. It's always scanning: as soon as a ball crosses the frame with enough
+   tracked points to fit a trajectory, its speed (mph) appears as a big
+   readout and holds until the next ball is tracked.
+3. No tap, no clip, no history — this is a single continuous live reading,
+   like a real radar gun.
 
-See `docs/ASSESSMENT.md` for the full technical rationale and
-`docs/CLI_PROMPT.md` for the original build brief this MVP was built from.
+Note: `docs/ASSESSMENT.md` and `docs/CLI_PROMPT.md` describe the original
+batted-ball exit-velocity/launch-angle/distance MVP this app was built from
+before it was rescoped into a live speed-only radar gun — the capture, Vision
+tracking, and monocular-calibration rationale in `docs/ASSESSMENT.md` still
+applies, but the calibration strategy is now known-object-size only, and
+launch angle, distance, clip capture/review, and swing history no longer
+exist in the app.
