@@ -3,14 +3,11 @@ import SwiftUI
 struct CaptureView: View {
     @ObservedObject var captureController: CaptureSessionController
     @ObservedObject var radarGun: RadarGunCoordinator
-    @StateObject private var levelProvider = LevelProvider()
 
     var body: some View {
         ZStack {
             CameraPreviewView(session: captureController.session)
                 .ignoresSafeArea()
-
-            FramingGuideView()
 
             TrajectoryOverlayView(trajectory: radarGun.currentTrajectory)
 
@@ -29,17 +26,13 @@ struct CaptureView: View {
 
                 RadarReadoutView(status: radarGun.status)
 
-                HStack {
-                    LevelIndicatorView(pitchDegrees: levelProvider.pitchDegrees, rollDegrees: levelProvider.rollDegrees)
-                    Spacer()
-                    if captureController.achievedFrameRate > 0 {
-                        Text("\(Int(captureController.achievedFrameRate)) fps")
-                            .font(.caption.monospacedDigit())
-                            .padding(6)
-                            .background(.ultraThinMaterial, in: Capsule())
-                    }
+                if captureController.achievedFrameRate > 0 {
+                    Text("\(Int(captureController.achievedFrameRate)) fps")
+                        .font(.caption.monospacedDigit())
+                        .padding(6)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .padding()
                 }
-                .padding()
 
                 Text("This is a camera-based estimate, not a radar-grade reading.")
                     .font(.caption2)
@@ -64,7 +57,6 @@ struct CaptureView: View {
             }
             await captureController.requestAccessAndConfigure()
             captureController.start()
-            levelProvider.start()
         }
         .onChange(of: captureController.activeCameraGeometry) { _, geometry in
             guard let geometry else { return }
@@ -72,7 +64,6 @@ struct CaptureView: View {
         }
         .onDisappear {
             captureController.stop()
-            levelProvider.stop()
         }
     }
 }
