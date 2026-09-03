@@ -37,7 +37,8 @@ struct CaptureView: View {
                 Text("This is a camera-based estimate, not a radar-grade reading.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                    .padding(.bottom)
+
+                scanButton
             }
 
             if let error = captureController.captureError {
@@ -65,6 +66,29 @@ struct CaptureView: View {
         .onDisappear {
             captureController.stop()
         }
+    }
+
+    /// Press-and-hold trigger: frames are only tracked while this is held down,
+    /// like a real radar gun's trigger, rather than continuously scanning
+    /// whatever the camera happens to be pointed at.
+    private var scanButton: some View {
+        Text(radarGun.isScanning ? "Scanning…" : "Hold to Scan")
+            .font(.title3.weight(.bold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 20)
+            .background(
+                radarGun.isScanning ? Color.red : Color.accentColor,
+                in: RoundedRectangle(cornerRadius: 18)
+            )
+            .padding(.horizontal)
+            .padding(.bottom, 24)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in radarGun.startScanning() }
+                    .onEnded { _ in radarGun.stopScanning() }
+            )
     }
 }
 

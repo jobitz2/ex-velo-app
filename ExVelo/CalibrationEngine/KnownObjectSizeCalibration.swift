@@ -5,7 +5,14 @@ import Foundation
 /// per docs/ASSESSMENT.md §2.4.1. This is the app's sole calibration strategy — it
 /// requires no extra hardware or user setup beyond framing the shot.
 enum KnownObjectSizeCalibration {
-    static func calibrate(trajectory: TrackedTrajectory, context: CalibrationContext) -> CalibratedTrajectory? {
+    /// `radiusPixels`, parallel to `trajectory.detectedPoints`, is each point's own
+    /// measured apparent ball radius (see BallRadiusEstimator) — used to derive a
+    /// per-point depth so a ball moving toward/away from the camera, or on any
+    /// angled path, is calibrated correctly instead of assumed to stay at a
+    /// constant distance for the whole trajectory. Any point beyond
+    /// `radiusPixels`'s length (a frame whose measurement was inconclusive) falls
+    /// back to Vision's trajectory-wide average radius.
+    static func calibrate(trajectory: TrackedTrajectory, radiusPixels: [CGFloat], context: CalibrationContext) -> CalibratedTrajectory? {
         guard !trajectory.detectedPoints.isEmpty else { return nil }
 
         let focalLengthPixels = CalibrationMath.focalLengthPixels(
@@ -13,18 +20,17 @@ enum KnownObjectSizeCalibration {
             horizontalFieldOfViewDegrees: context.horizontalFieldOfViewDegrees
         )
 
-        // Vision only exposes an observation-level moving-average radius (not a
-        // per-point radius), normalized against image width to match Apple's
-        // WWDC20 "Action & Vision" sample usage. That means depth is derived once
-        // for the whole trajectory rather than per frame — an acceptable
-        // approximation given the short tracked window this reads.
-        let ballRadiusPixels = trajectory.averageRadius * CGFloat(context.frameWidthPixels)
-        guard ballRadiusPixels > 0 else { return nil }
-        let depthMeters = (BaseballConstants.radiusMeters * focalLengthPixels) / Double(ballRadiusPixels)
+        let fallbackRadiusPixels = trajectory.averageRadius * CGFloat(context.frameWidthPixels)
+        let depthsMeters: [Double] = trajectory.detectedPoints.indices.map { index in
+            let ballRadiusPixels = index < radiusPixels.count && radiusPixels[index] > 0 ? radiusPixels[index] : fallbackRadiusPixels
+            guard ballRadiusPixels > 0 else { return 0 }
+            return (BaseballConstants.radiusMeters * focalLengthPixels) / Double(ballRadiusPixels)
+        }
+        guard depthsMeters.allSatisfy({ $0 > 0 }) else { return nil }
 
         let points = CalibrationGeometry.points(
             from: trajectory,
-            depthMeters: depthMeters,
+            depthsMeters: depthsMeters,
             focalLengthPixels: focalLengthPixels,
             context: context
         )

@@ -8,6 +8,15 @@ struct RadarReadoutView: View {
     var body: some View {
         Group {
             switch status {
+            case .idle:
+                VStack(spacing: 4) {
+                    Text("--")
+                        .font(.system(size: 64, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.5))
+                    Text("HOLD TO SCAN")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
             case .scanning:
                 VStack(spacing: 4) {
                     Text("--")

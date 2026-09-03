@@ -25,6 +25,13 @@ final class RadarGunEngine {
         self.geometry = geometry
     }
 
+    /// Clears tracked state so the next scan starts fresh — called when a new
+    /// press-and-hold scan begins.
+    func reset() {
+        tracker.reset()
+        lastActivity = 0
+    }
+
     /// Call only from the sample-buffer delegate queue.
     func ingest(_ sampleBuffer: CMSampleBuffer) -> Reading {
         let now = CFAbsoluteTimeGetCurrent()
@@ -32,10 +39,10 @@ final class RadarGunEngine {
             tracker.reset()
         }
 
-        let trajectories = tracker.process(sampleBuffer: sampleBuffer)
+        let tracked = tracker.process(sampleBuffer: sampleBuffer)
         // The longest tracked trajectory is the likeliest candidate for the actual
         // ball; shorter ones are more often background clutter.
-        guard let geometry, let best = trajectories.max(by: { $0.detectedPoints.count < $1.detectedPoints.count }) else {
+        guard let geometry, let best = tracked.max(by: { $0.trajectory.detectedPoints.count < $1.trajectory.detectedPoints.count }) else {
             return Reading(trajectory: nil, speedMph: nil)
         }
         lastActivity = now
@@ -45,10 +52,10 @@ final class RadarGunEngine {
             frameHeightPixels: geometry.pixelHeight,
             horizontalFieldOfViewDegrees: geometry.horizontalFieldOfViewDegrees
         )
-        guard let calibrated = KnownObjectSizeCalibration.calibrate(trajectory: best, context: context),
+        guard let calibrated = KnownObjectSizeCalibration.calibrate(trajectory: best.trajectory, radiusPixels: best.radiusPixels, context: context),
               let speedMph = PhysicsEngine.computeSpeedMph(from: calibrated) else {
-            return Reading(trajectory: best, speedMph: nil)
+            return Reading(trajectory: best.trajectory, speedMph: nil)
         }
-        return Reading(trajectory: best, speedMph: speedMph)
+        return Reading(trajectory: best.trajectory, speedMph: speedMph)
     }
 }

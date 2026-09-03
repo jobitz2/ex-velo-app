@@ -62,6 +62,35 @@ final class VelocityRegressionTests: XCTestCase {
         ]
         XCTAssertNil(VelocityRegression.speedMetersPerSecond(from: points))
     }
+
+    /// A ball thrown mostly *at* the camera (not laterally across the frame)
+    /// barely moves in x/y but closes distance fast — depthMeters shrinking
+    /// over time. Without a depth-rate (vz) term this would read as nearly
+    /// stationary; this confirms the closing speed is captured instead.
+    func testRecoversSpeedForBallMovingTowardCamera() {
+        let vx = 3.0 // m/s — mostly lateral drift, not the point of this test
+        let vz = -38.0 // m/s — closing on the camera fast
+        let startDepth = 18.0
+
+        let points: [CalibratedPoint] = (0..<10).map { i in
+            let t = Double(i) * 0.004
+            return CalibratedPoint(
+                xMeters: vx * t,
+                yMeters: 0,
+                depthMeters: startDepth + vz * t,
+                timestampSeconds: t
+            )
+        }
+
+        guard let recovered = VelocityRegression.speedMetersPerSecond(from: points) else {
+            return XCTFail("Expected a recovered speed")
+        }
+        let expected = (vx * vx + vz * vz).squareRoot()
+        XCTAssertEqual(recovered, expected, accuracy: 0.05)
+        // The regression must actually be using depth, not just x/y — a purely
+        // lateral reading would come out near 3 m/s, nowhere close to ~38 m/s.
+        XCTAssertGreaterThan(recovered, 30)
+    }
 }
 
 final class PhysicsEngineTests: XCTestCase {
